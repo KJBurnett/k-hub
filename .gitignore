@@ -1,0 +1,44 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+publish/
+
+# .NET / MSBuild
+*.user
+*.suo
+*.userprefs
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json.sample
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.trx
+*.cobertura.xml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local runtime data (offline-first storage / logs)
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+/data/
+/logs/
