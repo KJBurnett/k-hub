@@ -3,20 +3,51 @@
         xmlns:vm="using:OpenLogi.App.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="480"
         x:Class="OpenLogi.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
-        Icon="/Assets/avalonia-logo.ico"
-        Title="OpenLogi.App">
+        Width="720" Height="480"
+        Title="OpenLogi">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <TextBox Text="{Binding Greeting}"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center" />
+    <DockPanel Margin="16">
+
+        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Text="OpenLogi" FontSize="24" FontWeight="Bold" />
+            <TextBlock Text="A lightweight, offline-first Logitech mouse manager."
+                       Opacity="0.7" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom" Margin="0,12,0,0"
+                   Text="{Binding StatusText}" Opacity="0.8" />
+
+        <Border BorderBrush="#33888888" BorderThickness="1" CornerRadius="6" Padding="8">
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Devices}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:DeviceListItem">
+                            <Border Margin="0,0,0,8" Padding="12"
+                                    Background="#22888888" CornerRadius="6">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
+                                    <StackPanel Orientation="Horizontal" Spacing="6" Opacity="0.75">
+                                        <TextBlock Text="{Binding Tier}" />
+                                        <TextBlock Text="·" />
+                                        <TextBlock Text="{Binding Connection}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Capabilities}" Opacity="0.6"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+    </DockPanel>
 
 </Window>
