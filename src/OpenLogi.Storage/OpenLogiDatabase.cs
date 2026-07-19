@@ -14,9 +14,13 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
 {
     private readonly SqliteConnection _connection;
     private readonly SemaphoreSlim _mutex = new(1, 1);
+    private readonly object _lifecycleGate = new();
     private readonly IAppLogger _logger;
     private bool _initialized;
     private bool _disposed;
+    private int _activeOperations;
+    private TaskCompletionSource? _operationsDrained;
+    private Task? _disposeTask;
 
     /// <summary>Creates a database over an explicit connection string.</summary>
     public OpenLogiDatabase(string connectionString, IAppLoggerFactory loggerFactory)
@@ -50,34 +54,40 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     /// <summary>Opens the connection and applies the schema. Safe to call repeatedly.</summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        ThrowIfDisposed();
-        await _mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+        EnterOperation();
         try
         {
-            ThrowIfDisposed();
-            if (_initialized)
+            await _mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                return;
+                if (_initialized)
+                {
+                    return;
+                }
+
+                await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+                await ExecutePragmaAsync("PRAGMA foreign_keys = ON;", cancellationToken).ConfigureAwait(false);
+                await ExecutePragmaAsync("PRAGMA journal_mode = WAL;", cancellationToken).ConfigureAwait(false);
+
+                await using (var command = _connection.CreateCommand())
+                {
+                    command.CommandText = Schema.CreateScript;
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                await ApplyVersionAsync(cancellationToken).ConfigureAwait(false);
+                _initialized = true;
+                _logger.Information($"Local database initialised (schema v{Schema.Version}).");
             }
-
-            await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-            await ExecutePragmaAsync("PRAGMA foreign_keys = ON;", cancellationToken).ConfigureAwait(false);
-            await ExecutePragmaAsync("PRAGMA journal_mode = WAL;", cancellationToken).ConfigureAwait(false);
-
-            await using (var command = _connection.CreateCommand())
+            finally
             {
-                command.CommandText = Schema.CreateScript;
-                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                _mutex.Release();
             }
-
-            await ApplyVersionAsync(cancellationToken).ConfigureAwait(false);
-            _initialized = true;
-            _logger.Information($"Local database initialised (schema v{Schema.Version}).");
         }
         finally
         {
-            _mutex.Release();
+            ExitOperation();
         }
     }
 
@@ -90,15 +100,22 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(action);
         EnsureInitialized();
-        await _mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+        EnterOperation();
         try
         {
-            ThrowIfDisposed();
-            return await action(_connection).ConfigureAwait(false);
+            await _mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await action(_connection).ConfigureAwait(false);
+            }
+            finally
+            {
+                _mutex.Release();
+            }
         }
         finally
         {
-            _mutex.Release();
+            ExitOperation();
         }
     }
 
@@ -112,30 +129,38 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
         }, cancellationToken);
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        var disposeMutex = false;
+        lock (_lifecycleGate)
+        {
+            if (_disposeTask is null)
+            {
+                _disposed = true;
+                _disposeTask = DisposeAfterOperationsAsync(
+                    _activeOperations == 0
+                        ? Task.CompletedTask
+                        : (_operationsDrained = new TaskCompletionSource(
+                            TaskCreationOptions.RunContinuationsAsynchronously)).Task);
+            }
+
+            return new ValueTask(_disposeTask);
+        }
+    }
+
+    private async Task DisposeAfterOperationsAsync(Task operationsDrained)
+    {
+        await operationsDrained.ConfigureAwait(false);
         await _mutex.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
             await _connection.DisposeAsync().ConfigureAwait(false);
-            disposeMutex = true;
         }
         finally
         {
             _mutex.Release();
         }
 
-        if (disposeMutex)
-        {
-            _mutex.Dispose();
-        }
+        _mutex.Dispose();
     }
 
     private async Task ExecutePragmaAsync(string pragma, CancellationToken cancellationToken)
@@ -172,5 +197,26 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+    }
+
+    private void EnterOperation()
+    {
+        lock (_lifecycleGate)
+        {
+            ThrowIfDisposed();
+            _activeOperations++;
+        }
+    }
+
+    private void ExitOperation()
+    {
+        lock (_lifecycleGate)
+        {
+            _activeOperations--;
+            if (_activeOperations == 0 && _disposed)
+            {
+                _operationsDrained?.TrySetResult();
+            }
+        }
     }
 }
