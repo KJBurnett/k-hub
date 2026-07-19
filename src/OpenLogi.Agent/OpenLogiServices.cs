@@ -34,10 +34,11 @@ public static class OpenLogiServices
         // Logging: shared in-memory sink backs diagnostics export (PLAN.md section 17).
         var inMemorySink = new InMemoryLogSink();
         services.AddSingleton(inMemorySink);
+        services.AddSingleton(_ => new FileLogSink(options.LogFilePath));
         services.AddSingleton<IAppLoggerFactory>(_ => new AppLoggerFactory(
             options.MinimumLogLevel,
             new ConsoleLogSink(),
-            new FileLogSink(options.LogFilePath),
+            _.GetRequiredService<FileLogSink>(),
             inMemorySink));
 
         // Core.

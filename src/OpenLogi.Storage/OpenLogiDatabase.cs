@@ -16,6 +16,7 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     private readonly SemaphoreSlim _mutex = new(1, 1);
     private readonly IAppLogger _logger;
     private bool _initialized;
+    private bool _disposed;
 
     /// <summary>Creates a database over an explicit connection string.</summary>
     public OpenLogiDatabase(string connectionString, IAppLoggerFactory loggerFactory)
@@ -46,28 +47,38 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     public static OpenLogiDatabase InMemory(IAppLoggerFactory loggerFactory)
         => new("Data Source=:memory:", loggerFactory);
 
-    /// <summary>Opens the connection and applies the schema. Safe to call once.</summary>
+    /// <summary>Opens the connection and applies the schema. Safe to call repeatedly.</summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        if (_initialized)
+        ThrowIfDisposed();
+        await _mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return;
+            ThrowIfDisposed();
+            if (_initialized)
+            {
+                return;
+            }
+
+            await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            await ExecutePragmaAsync("PRAGMA foreign_keys = ON;", cancellationToken).ConfigureAwait(false);
+            await ExecutePragmaAsync("PRAGMA journal_mode = WAL;", cancellationToken).ConfigureAwait(false);
+
+            await using (var command = _connection.CreateCommand())
+            {
+                command.CommandText = Schema.CreateScript;
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await ApplyVersionAsync(cancellationToken).ConfigureAwait(false);
+            _initialized = true;
+            _logger.Information($"Local database initialised (schema v{Schema.Version}).");
         }
-
-        await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-        await ExecutePragmaAsync("PRAGMA foreign_keys = ON;", cancellationToken).ConfigureAwait(false);
-        await ExecutePragmaAsync("PRAGMA journal_mode = WAL;", cancellationToken).ConfigureAwait(false);
-
-        await using (var command = _connection.CreateCommand())
+        finally
         {
-            command.CommandText = Schema.CreateScript;
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            _mutex.Release();
         }
-
-        await ApplyVersionAsync(cancellationToken).ConfigureAwait(false);
-        _initialized = true;
-        _logger.Information($"Local database initialised (schema v{Schema.Version}).");
     }
 
     /// <summary>
@@ -82,6 +93,7 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
         await _mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ThrowIfDisposed();
             return await action(_connection).ConfigureAwait(false);
         }
         finally
@@ -102,8 +114,21 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        await _connection.DisposeAsync().ConfigureAwait(false);
-        _mutex.Dispose();
+        await _mutex.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            await _connection.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _mutex.Release();
+        }
     }
 
     private async Task ExecutePragmaAsync(string pragma, CancellationToken cancellationToken)
@@ -129,10 +154,16 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
 
     private void EnsureInitialized()
     {
+        ThrowIfDisposed();
         if (!_initialized)
         {
             throw new InvalidOperationException(
                 "The database must be initialised before use. Call InitializeAsync first.");
         }
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }
