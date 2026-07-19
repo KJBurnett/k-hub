@@ -15,6 +15,7 @@ public sealed class WindowsHidBackend : IHidBackend
     private const uint DigcfPresent = 0x00000002;
     private const uint DigcfDeviceInterface = 0x00000010;
     private const uint FileFlagOverlapped = 0x40000000;
+    private const int HidpStatusSuccess = 0x00110000;
     private const int ErrorNoMoreItems = 259;
     private const int ErrorInsufficientBuffer = 122;
 
@@ -97,6 +98,8 @@ public sealed class WindowsHidBackend : IHidBackend
             throw new Win32Exception(detailError, "Unable to determine the HID device path length.");
         }
 
+        // SetupAPI determines this variable-sized structure at runtime, so it
+        // cannot be represented by a fixed managed or stack allocation.
         var detail = Marshal.AllocHGlobal(checked((int)requiredSize));
         try
         {
@@ -141,7 +144,7 @@ public sealed class WindowsHidBackend : IHidBackend
         try
         {
             var status = HidP_GetCaps(preparsedData, out var caps);
-            if (status != 0x00110000)
+            if (status != HidpStatusSuccess)
             {
                 throw new InvalidOperationException($"Unable to read HID capabilities for '{path}' (status 0x{status:X8}).");
             }

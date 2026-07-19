@@ -15,7 +15,7 @@ public sealed class WindowsHidDevice : IHidDevice
         ArgumentNullException.ThrowIfNull(descriptor);
         Descriptor = descriptor;
         _stream = new FileStream(
-            descriptor.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite,
+            descriptor.Path, FileMode.Open, FileAccess.ReadWrite, FileShare.Read,
             bufferSize: 4096, FileOptions.Asynchronous);
     }
 
