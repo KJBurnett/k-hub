@@ -135,9 +135,10 @@ Real and tested today:
 
 Deliberately stubbed / provisional:
 
-- **HID backend** — only the in-memory mock exists. The real Windows backend
-  (`IHidBackend`) lands in **Phase 2** and swaps in behind the abstraction with no
-  changes above it.
+- **HID backend** — the Windows backend can enumerate and open present HID
+  interfaces, while the in-memory mock remains available for tests and demo mode.
+  Device arrival/removal notifications still need host integration to complete
+  **Phase 2**.
 - **Device report framing** (`DeviceReports`) — the byte layouts are placeholders,
   **not** the real Logitech HID++ protocol. Real HID++ 2.0 arrives in **Phase 3**.
 - **Foreground-app monitor** — `NullForegroundAppMonitor` until a platform

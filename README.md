@@ -5,11 +5,10 @@ mice — a focused alternative to Logitech G HUB. OpenLogi aims to be fast,
 native-feeling, and privacy-respecting: everything runs locally, nothing is sent
 anywhere, and there is no account, no cloud, and no analytics.
 
-See [`PLAN.md`](PLAN.md) for the full product and architecture brief. This
-repository currently contains the **Phase 0 / Phase 1 foundation**: the full
-architecture skeleton with genuine, tested implementations of the core layers and
-a hardware-free demo mode. Real Windows HID communication is deliberately deferred
-to a later phase (see [Roadmap](#roadmap)).
+See [`PLAN.md`](PLAN.md) for the full product and architecture brief. This repository contains the **Phase 0 / Phase 1 foundation** and the first part of
+**Phase 2**: the core layers, a Windows HID discovery/opening backend, and a
+hardware-free demo mode. Real Logitech HID++ 2.0 commands are still deferred to
+Phase 3, so this is **not yet a replacement for G HUB**.
 
 ## Design principles
 
@@ -46,7 +45,7 @@ src/
   OpenLogi.Core/      Domain model: capabilities, devices, configuration, events
   OpenLogi.Logging/   Self-contained logging (console / file / in-memory sinks)
   OpenLogi.Storage/   SQLite schema + repositories (profiles, settings, app rules)
-  OpenLogi.Hid/       HID transport abstraction + hardware-free mock backend
+  OpenLogi.Hid/       HID transport abstraction + Windows and mock backends
   OpenLogi.Devices/   Capability-driven IDevice, catalog, factory, device manager
   OpenLogi.Agent/     Background agent: DI composition root + hosted services
   OpenLogi.App/       Avalonia desktop UI shell
@@ -60,7 +59,44 @@ tests/
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the layers fit together
 and what is real vs. stubbed today.
 
-## Getting started
+## Quick install and run
+
+OpenLogi is currently a source-build preview; no installer or release package is
+published yet. It runs on **Windows 11**, with **Windows 10 best effort** support.
+Linux and macOS are future targets and are not supported for real hardware use.
+
+1. Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+   (the version policy is in `global.json`).
+2. Clone this repository and open a terminal at its root.
+3. Build and start the hardware-free demo:
+
+```powershell
+dotnet build OpenLogi.sln
+dotnet run --project src/OpenLogi.Agent -- --demo
+```
+
+To launch the desktop shell instead, run:
+
+```powershell
+dotnet run --project src/OpenLogi.App
+```
+
+The desktop shell currently displays only mock/demo devices because HID++ device
+control has not yet been implemented.
+
+## Device support
+
+Support tiers below are the project targets from `PLAN.md`. No physical mouse has
+full end-user support until the Phase 3 HID++ protocol and configuration UI land.
+
+| Tier | Mice | Support level |
+| --- | --- | --- |
+| Full support (target) | G502 Proteus Core/Spectrum/HERO/LIGHTSPEED/X/X LIGHTSPEED/X PLUS; G Pro X Superlight/2 | Every planned mouse feature, tested per release |
+| Generic support (target) | G903; G703 family; G305; G303/Shroud; G403; G402; G400s; G600; MX Master/Anywhere where feasible | Capability-driven features reported by the mouse; no full-support guarantee |
+| Generic Logitech HID++ | Other Logitech HID++ mice | Graceful fallback to the capabilities the device exposes |
+| Unsupported | Non-Logitech devices | Not supported |
+
+## Developer setup
 
 Prerequisites: the **.NET 8 SDK** (the exact version is pinned in `global.json`).
 
@@ -99,8 +135,9 @@ The UI hosts the agent in-process and lists connected (mock) devices.
 - **Phase 0 / 1 (this repository):** stack selection, project scaffolding,
   CI, core architecture skeleton, capability model, logging, local storage,
   mock HID backend, demo mode, and contributor docs.
-- **Phase 2:** real Windows HID backend implementing `IHidBackend`, swapped in
-  behind the existing abstraction with no changes to the layers above.
+- **Phase 2 (in progress):** the Windows HID backend now enumerates and opens
+  present HID interfaces. Arrival/removal monitoring and device classification
+  remain to be implemented.
 - **Phase 3:** real Logitech HID++ 2.0 protocol replacing the provisional report
   framing in the device layer.
 

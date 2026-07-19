@@ -62,4 +62,16 @@ public class SettingsRepositoryTests
         Assert.Equal("v2", await repository.GetValueAsync("k"));
         Assert.Null(await repository.GetValueAsync("missing"));
     }
+
+    [Fact]
+    public async Task InitializeAsync_allows_concurrent_callers()
+    {
+        await using var database = OpenLogiDatabase.InMemory(LoggerFactory);
+
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => database.InitializeAsync()));
+
+        var settings = await new SettingsRepository(database).GetAppSettingsAsync();
+
+        Assert.Equal(AppSettings.Default, settings);
+    }
 }

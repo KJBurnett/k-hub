@@ -112,7 +112,10 @@ public sealed class ProfileRepository : IProfileRepository
                 set.Transaction = (SqliteTransaction)transaction;
                 set.CommandText = "UPDATE profiles SET is_default = 1 WHERE id = $id;";
                 set.Parameters.AddWithValue("$id", id);
-                await set.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                if (await set.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 0)
+                {
+                    throw new KeyNotFoundException($"Profile '{id}' does not exist.");
+                }
             }
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
