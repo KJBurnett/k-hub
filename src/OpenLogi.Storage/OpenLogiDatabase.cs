@@ -114,6 +114,7 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        var disposeMutex = false;
         await _mutex.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -124,10 +125,16 @@ public sealed class OpenLogiDatabase : IAsyncDisposable
 
             _disposed = true;
             await _connection.DisposeAsync().ConfigureAwait(false);
+            disposeMutex = true;
         }
         finally
         {
             _mutex.Release();
+        }
+
+        if (disposeMutex)
+        {
+            _mutex.Dispose();
         }
     }
 
