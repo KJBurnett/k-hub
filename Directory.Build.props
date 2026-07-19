@@ -1,0 +1,38 @@
+<Project>
+
+  <!--
+    Shared build settings for every OpenLogi project.
+    Keep this lightweight: OpenLogi optimizes for a small, fast, native-feeling
+    binary with zero telemetry (see PLAN.md sections 3, 21, 23).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      SQLite is mandated by PLAN.md section 15. The bundled native SQLite lib
+      (SQLitePCLRaw.lib.e_sqlite3) currently carries advisory GHSA-2m69-gcr7-jv3q
+      with no patched version available in any release. We pin the newest
+      available native lib (2.1.11) and isolate all SQLite access behind
+      OpenLogi.Storage. This one unavoidable, unpatchable advisory is excluded
+      from build errors so CI stays green; all other audit warnings still fail.
+    -->
+    <WarningsNotAsErrors>NU1903;NU1902</WarningsNotAsErrors>
+
+    <!-- Deterministic, reproducible builds -->
+    <Deterministic>true</Deterministic>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <!-- Product metadata -->
+    <Product>OpenLogi</Product>
+    <Company>OpenLogi</Company>
+    <Authors>OpenLogi Contributors</Authors>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+</Project>

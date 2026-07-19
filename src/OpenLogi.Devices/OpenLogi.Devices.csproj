@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\OpenLogi.Core\OpenLogi.Core.csproj" />
+    <ProjectReference Include="..\OpenLogi.Logging\OpenLogi.Logging.csproj" />
+    <ProjectReference Include="..\OpenLogi.Hid\OpenLogi.Hid.csproj" />
+  </ItemGroup>
+
+</Project>
