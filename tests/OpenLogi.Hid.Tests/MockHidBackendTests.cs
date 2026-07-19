@@ -52,4 +52,15 @@ public class MockHidBackendTests
         Assert.True(device.IsOpen);
         Assert.Same(device, backend.GetOpenDevice("mock://1"));
     }
+
+    [Fact]
+    public void Windows_backend_rejects_non_windows_platforms()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        Assert.Throws<PlatformNotSupportedException>(() => new WindowsHidBackend());
+    }
 }

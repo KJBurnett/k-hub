@@ -83,4 +83,17 @@ public class ProfileRepositoryTests
         Assert.Equal("p2", def!.Id);
         Assert.False((await repository.GetAsync("p1"))!.IsDefault);
     }
+
+    [Fact]
+    public async Task SetDefault_for_missing_profile_preserves_existing_default()
+    {
+        await using var database = await CreateDatabaseAsync();
+        var repository = new ProfileRepository(database);
+        await repository.SaveAsync(SampleProfile("p1", "A"));
+        await repository.SetDefaultAsync("p1");
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => repository.SetDefaultAsync("missing"));
+
+        Assert.Equal("p1", (await repository.GetDefaultAsync())!.Id);
+    }
 }

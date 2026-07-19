@@ -50,8 +50,16 @@ public static class OpenLogiServices
         services.AddSingleton<ISettingsRepository, SettingsRepository>();
         services.AddSingleton<IApplicationRuleRepository, ApplicationRuleRepository>();
 
-        // HID transport (mock for now; Windows backend arrives in Phase 2).
-        services.AddSingleton<IHidBackend, MockHidBackend>();
+        // Use the real Windows transport for normal production runs. Demo mode
+        // and non-Windows development continue to use the hardware-free backend.
+        if (OperatingSystem.IsWindows() && !options.UseDemoDevices)
+        {
+            services.AddSingleton<IHidBackend, WindowsHidBackend>();
+        }
+        else
+        {
+            services.AddSingleton<IHidBackend, MockHidBackend>();
+        }
 
         // Device layer.
         services.AddSingleton<DeviceCatalog>();
